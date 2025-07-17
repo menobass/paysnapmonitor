@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+
+# Environment & secrets
+.env
+
+# Databases
+*.db
+paynsnap.db
+paysnap.db
+
+# Logs
+*.log
+
+# System
+last_block.txt
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

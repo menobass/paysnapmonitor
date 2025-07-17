@@ -1,0 +1,17 @@
+stores:
+  - paynsnapstore1
+  - paynsnapstore2
+ban_list:
+  - baduser1
+  - baduser2
+limits:
+  daily_cashback_limit: 3
+rates:
+  first: 0.05
+  second: 0.07
+  third: 0.10
+caps:
+  invoice_max: 1.50
+nodes:
+  - https://api.hive.blog
+  - https://anyx.io

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pay n Snap Admin Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8f9fa; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 32px; }
+        h1 { color: #2c3e50; }
+        p { color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Pay n Snap Admin Dashboard</h1>
+        <p>Login successful. Customize this dashboard as needed.</p>
+        <h2>Recent Cashback Transactions</h2>
+        <table style="width:100%;border-collapse:collapse;margin-top:24px;">
+            <thead>
+                <tr style="background:#eee;">
+                    <th style="padding:8px;border:1px solid #ccc;">Username</th>
+                    <th style="padding:8px;border:1px solid #ccc;">Purchases</th>
+                    <th style="padding:8px;border:1px solid #ccc;">Last Purchase</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for username, purchases, last_purchase in transactions %}
+                <tr>
+                    <td style="padding:8px;border:1px solid #ccc;">{{ username }}</td>
+                    <td style="padding:8px;border:1px solid #ccc;">{{ purchases }}</td>
+                    <td style="padding:8px;border:1px solid #ccc;">{{ last_purchase }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="3" style="padding:8px;text-align:center;">No transactions found.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

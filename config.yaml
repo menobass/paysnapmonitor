@@ -1,0 +1,18 @@
+stores:
+  - jersonsweetplace
+  - supermarketleo
+  - cguitars
+ban_list:
+  - ketzali
+  - ankapolo
+limits:
+  daily_cashback_limit: 3
+rates:
+  first: 0.07
+  second: 0.10
+  third: 0.15
+caps:
+  invoice_max: 1.50
+nodes:
+  - https://api.hive.blog
+  - https://anyx.io

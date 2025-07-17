@@ -1,0 +1,11 @@
+fastapi
+jinja2
+hivelite
+python-dotenv
+requests
+pytest
+black
+flake8
+mypy
+uvicorn
+sqlite3

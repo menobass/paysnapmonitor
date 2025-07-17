@@ -1,0 +1,3 @@
+<!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
+
+This project is a modular Python backend bot for Hive blockchain cashback (Pay n Snap). Use hivelite for blockchain interaction, FastAPI for admin dashboard/API, Jinja2 for HTML, python-dotenv for env management, SQLite for storage, requests for HTTP, logging for JSON logs, pytest for tests, black/flake8/mypy for code quality. All config in config.yaml, secrets in .env. Code must be robust, secure, and extensible.
