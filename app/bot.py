@@ -214,23 +214,57 @@ class HiveBot:
         except Exception as e:
             logger.error(f"Error sending cashback to {user}: {e}")
 
-    def reply_comment(self, user, memo, amount, parent_author, parent_permlink):
+    def reply_comment(self, user, memo, amount, parent_author, parent_permlink, store=None):
         import re
         invoice_match = re.match(r"^kcs-hpos-(\d{4})-(\d{4})$", memo)
         invoice_number = memo if not invoice_match else f"{invoice_match.group(1)}-{invoice_match.group(2)}"
         msg = f"Hello {user}, thank you for using Snap and Pay. I just sent you {amount:.2f} HBD back to you for the invoice {invoice_number}."
         logger.info(f"Replying to {user}: {msg}")
+        
+        # Try to post with beneficiary first, fallback to simple comment if it fails
         client = Client(nodes=self.nodes, keys=[self.posting_key])
-        op = Operation('comment', {
-            'parent_author': parent_author,
-            'parent_permlink': parent_permlink,
-            'author': self.username,
-            'permlink': f"paynsnap-{int(time.time())}",
-            'title': "",
-            'body': msg,
-            'json_metadata': '{}'
-        })
-        client.broadcast([op])
+        
+        try:
+            # Attempt to post with 10% beneficiary to the store
+            if store:
+                beneficiaries = [
+                    {"account": store, "weight": 1000},  # 10% (1000 out of 10000)
+                    {"account": self.username, "weight": 9000}  # 90% (9000 out of 10000)
+                ]
+                
+                op = Operation('comment', {
+                    'parent_author': parent_author,
+                    'parent_permlink': parent_permlink,
+                    'author': self.username,
+                    'permlink': f"paynsnap-{int(time.time())}",
+                    'title': "",
+                    'body': msg,
+                    'json_metadata': json.dumps({
+                        "beneficiaries": beneficiaries
+                    })
+                })
+                
+                client.broadcast([op])
+                logger.info(f"Reply posted with 10% beneficiary to {store}")
+                
+            else:
+                # No store provided, post simple comment
+                raise ValueError("No store provided for beneficiary")
+                
+        except Exception as e:
+            # Fallback to simple comment without beneficiaries
+            logger.warning(f"Failed to post with beneficiary to {store}: {e}. Falling back to simple reply.")
+            
+            op = Operation('comment', {
+                'parent_author': parent_author,
+                'parent_permlink': parent_permlink,
+                'author': self.username,
+                'permlink': f"paynsnap-{int(time.time())}",
+                'title': "",
+                'body': msg,
+                'json_metadata': '{}'
+            })
+            client.broadcast([op])
 
     def check_pending_payments(self):
         logger.info(f"Checking pending payments queue: {len(self.pending_payments)} items.")
@@ -299,7 +333,7 @@ class HiveBot:
                     logger.info(f"Valid snap detected for user {sender}. Processing cashback.")
                     cashback = self.calculator.calculate(purchase_num, amount)
                     self.send_cashback(sender, cashback, memo)
-                    self.reply_comment(sender, memo, cashback, snap_author, snap_permlink)
+                    self.reply_comment(sender, memo, cashback, snap_author, snap_permlink, to)
                     
                     # Send Discord notification for successful payment
                     self.send_discord_notification(
@@ -312,6 +346,7 @@ class HiveBot:
                             {"name": "Purchase #", "value": str(purchase_num), "inline": True},
                             {"name": "Original Payment", "value": f"{amount:.3f} HBD", "inline": True},
                             {"name": "Invoice", "value": memo, "inline": True},
+                            {"name": "Store Beneficiary", "value": f"10% to @{to}", "inline": True},
                             {"name": "Snap Link", "value": f"[@{snap_author}/{snap_permlink}](https://peakd.com/@{snap_author}/{snap_permlink})", "inline": False}
                         ]
                     )
