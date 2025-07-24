@@ -18,19 +18,23 @@
             <thead>
                 <tr style="background:#eee;">
                     <th style="padding:8px;border:1px solid #ccc;">Username</th>
-                    <th style="padding:8px;border:1px solid #ccc;">Purchases</th>
-                    <th style="padding:8px;border:1px solid #ccc;">Last Purchase</th>
+                    <th style="padding:8px;border:1px solid #ccc;">Amount</th>
+                    <th style="padding:8px;border:1px solid #ccc;">Memo</th>
+                    <th style="padding:8px;border:1px solid #ccc;">Reason</th>
+                    <th style="padding:8px;border:1px solid #ccc;">Timestamp</th>
                 </tr>
             </thead>
             <tbody>
-            {% for username, purchases, last_purchase in transactions %}
+            {% for username, amount, memo, paid, reason, timestamp, snap_permlink in transactions %}
                 <tr>
                     <td style="padding:8px;border:1px solid #ccc;">{{ username }}</td>
-                    <td style="padding:8px;border:1px solid #ccc;">{{ purchases }}</td>
-                    <td style="padding:8px;border:1px solid #ccc;">{{ last_purchase }}</td>
+                    <td style="padding:8px;border:1px solid #ccc;">{{ amount }} HBD</td>
+                    <td style="padding:8px;border:1px solid #ccc;">{{ memo }}</td>
+                    <td style="padding:8px;border:1px solid #ccc;">{{ reason }}</td>
+                    <td style="padding:8px;border:1px solid #ccc;">{{ timestamp }}</td>
                 </tr>
             {% else %}
-                <tr><td colspan="3" style="padding:8px;text-align:center;">No transactions found.</td></tr>
+                <tr><td colspan="5" style="padding:8px;text-align:center;">No transactions found.</td></tr>
             {% endfor %}
             </tbody>
         </table>

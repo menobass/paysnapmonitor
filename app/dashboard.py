@@ -13,9 +13,15 @@ def get_admin():
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
-    # Query recent cashback transactions
+    # Query recent cashback transactions from payment_events table
     cursor = db.conn.cursor()
-    cursor.execute("SELECT username, purchases, last_purchase FROM users ORDER BY last_purchase DESC LIMIT 10")
+    cursor.execute("""
+        SELECT username, amount, memo, paid, reason, timestamp, snap_permlink 
+        FROM payment_events 
+        WHERE paid = 1 
+        ORDER BY timestamp DESC 
+        LIMIT 20
+    """)
     transactions = cursor.fetchall()
     template = env.get_template("dashboard.html")
     return template.render(transactions=transactions)

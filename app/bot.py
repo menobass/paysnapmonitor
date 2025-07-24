@@ -220,7 +220,7 @@ class HiveBot:
                     self.send_cashback(sender, cashback, memo)
                     self.reply_comment(sender, memo, cashback, snap_author, snap_permlink)
                     db.conn.execute("INSERT INTO processed_ops (block_num, op_id) VALUES (?, ?)", (block_num, op_id))
-                    db.conn.execute("INSERT OR IGNORE INTO users (username, purchases, last_purchase) VALUES (?, ?, datetime('now'))", (sender, purchase_num))
+                    db.conn.execute("INSERT OR REPLACE INTO users (username, purchases, last_purchase) VALUES (?, ?, datetime('now'))", (sender, purchase_num))
                     db.conn.commit()
                     paid = 1
                     reason = f"Snap detected, paid {cashback:.2f} HBD"
