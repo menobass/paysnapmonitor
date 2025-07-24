@@ -223,28 +223,50 @@ class HiveBot:
         
         # Try to post with beneficiary first, fallback to simple comment if it fails
         client = Client(nodes=self.nodes, keys=[self.posting_key])
+        permlink = f"paynsnap-{int(time.time())}"
         
         try:
-            # Attempt to post with 10% beneficiary to the store
+            # Attempt to post with 10% beneficiary to the store using proper structure
             if store:
-                beneficiaries = [
-                    {"account": store, "weight": 1000},  # 10% (1000 out of 10000)
-                    {"account": self.username, "weight": 9000}  # 90% (9000 out of 10000)
-                ]
+                # Create operations array like in the JavaScript code
+                operations = []
                 
-                op = Operation('comment', {
+                # First operation: comment
+                comment_op = Operation('comment', {
                     'parent_author': parent_author,
                     'parent_permlink': parent_permlink,
                     'author': self.username,
-                    'permlink': f"paynsnap-{int(time.time())}",
+                    'permlink': permlink,
                     'title': "",
                     'body': msg,
                     'json_metadata': json.dumps({
-                        "beneficiaries": beneficiaries
+                        'app': 'paynsnapbot',
+                        'format': 'markdown'
                     })
                 })
+                operations.append(comment_op)
                 
-                client.broadcast([op])
+                # Second operation: comment_options with beneficiaries
+                comment_options_op = Operation('comment_options', {
+                    'author': self.username,
+                    'permlink': permlink,
+                    'max_accepted_payout': '1000000.000 HBD',
+                    'percent_hbd': 10000,
+                    'allow_votes': True,
+                    'allow_curation_rewards': True,
+                    'extensions': [
+                        [0, {
+                            'beneficiaries': [
+                                {'account': store, 'weight': 1000},  # 10% to store
+                                {'account': self.username, 'weight': 9000}  # 90% to bot
+                            ]
+                        }]
+                    ]
+                })
+                operations.append(comment_options_op)
+                
+                # Broadcast both operations together
+                client.broadcast(operations)
                 logger.info(f"Reply posted with 10% beneficiary to {store}")
                 
             else:
@@ -259,10 +281,13 @@ class HiveBot:
                 'parent_author': parent_author,
                 'parent_permlink': parent_permlink,
                 'author': self.username,
-                'permlink': f"paynsnap-{int(time.time())}",
+                'permlink': f"paynsnap-fallback-{int(time.time())}",
                 'title': "",
                 'body': msg,
-                'json_metadata': '{}'
+                'json_metadata': json.dumps({
+                    'app': 'paynsnapbot',
+                    'format': 'markdown'
+                })
             })
             client.broadcast([op])
 
