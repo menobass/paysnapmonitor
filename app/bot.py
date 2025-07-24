@@ -1,6 +1,7 @@
 import time
 import os
 import requests
+import json
 from lighthive.client import Client
 from lighthive.datastructures import Operation
 from app.config import config
@@ -36,8 +37,46 @@ class HiveBot:
         self.username = os.getenv('HIVE_USERNAME')
         self.posting_key = os.getenv('HIVE_POSTING_KEY')
         self.active_key = os.getenv('HIVE_ACTIVE_KEY')
+        self.discord_webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
         self.last_block = self.read_last_block()
         self.pending_payments = []  # List of dicts: {sender, to, amount, memo, block_num, timestamp, snap_author, snap_permlink}
+
+    def send_discord_notification(self, title, description, color=0x00ff00, fields=None):
+        """Send a notification to Discord via webhook"""
+        if not self.discord_webhook_url:
+            logger.debug("Discord webhook URL not configured, skipping notification")
+            return
+        
+        try:
+            embed = {
+                "title": title,
+                "description": description,
+                "color": color,
+                "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S.000Z', time.gmtime())
+            }
+            
+            if fields:
+                embed["fields"] = fields
+                
+            payload = {
+                "username": "PaySnap Bot",
+                "embeds": [embed]
+            }
+            
+            response = requests.post(
+                self.discord_webhook_url,
+                data=json.dumps(payload),
+                headers={'Content-Type': 'application/json'},
+                timeout=10
+            )
+            
+            if response.status_code == 204:
+                logger.info("Discord notification sent successfully")
+            else:
+                logger.error(f"Failed to send Discord notification: {response.status_code} - {response.text}")
+                
+        except Exception as e:
+            logger.error(f"Error sending Discord notification: {e}")
 
     def read_last_block(self):
         try:
@@ -114,6 +153,22 @@ class HiveBot:
             from_account = op_data.get('from', '')
             if to in self.stores and self.valid_memo(memo):
                 logger.info(f"QUALIFYING TRANSFER: block={block_num} from={from_account} to={to} amount={amount} memo={memo} trx_id={op_id}")
+                
+                # Send Discord notification for new payment received
+                self.send_discord_notification(
+                    title="💳 New Payment Received",
+                    description=f"Received payment from **@{from_account}** - waiting for snap",
+                    color=0x0099ff,  # Blue
+                    fields=[
+                        {"name": "User", "value": f"@{from_account}", "inline": True},
+                        {"name": "Amount", "value": amount, "inline": True},
+                        {"name": "Store", "value": to, "inline": True},
+                        {"name": "Invoice", "value": memo, "inline": True},
+                        {"name": "Block", "value": str(block_num), "inline": True},
+                        {"name": "Status", "value": "⏳ Waiting for snap", "inline": True}
+                    ]
+                )
+                
                 self.pending_payments.append({
                     'sender': from_account,
                     'to': to,
@@ -205,6 +260,19 @@ class HiveBot:
             if purchase_num > daily_limit:
                 reason = "User exceeded daily limit"
                 paid = 0
+                # Send Discord notification for daily limit exceeded
+                self.send_discord_notification(
+                    title="⚠️ Payment Rejected - Daily Limit",
+                    description=f"**@{sender}** exceeded daily cashback limit",
+                    color=0xffaa00,  # Orange
+                    fields=[
+                        {"name": "User", "value": f"@{sender}", "inline": True},
+                        {"name": "Purchase #", "value": str(purchase_num), "inline": True},
+                        {"name": "Daily Limit", "value": str(daily_limit), "inline": True},
+                        {"name": "Amount", "value": f"{amount:.3f} HBD", "inline": True},
+                        {"name": "Invoice", "value": memo, "inline": True}
+                    ]
+                )
             elif not snap_author or not snap_permlink:
                 reason = "No snap detected"
                 paid = 0
@@ -214,11 +282,40 @@ class HiveBot:
                 if not snap_valid:
                     reason = "Snap detected, wrong beneficiaries"
                     paid = 0
+                    # Send Discord notification for invalid snap
+                    self.send_discord_notification(
+                        title="❌ Payment Rejected - Invalid Snap",
+                        description=f"**@{sender}** posted a snap with wrong beneficiaries",
+                        color=0xff0000,  # Red
+                        fields=[
+                            {"name": "User", "value": f"@{sender}", "inline": True},
+                            {"name": "Amount", "value": f"{amount:.3f} HBD", "inline": True},
+                            {"name": "Invoice", "value": memo, "inline": True},
+                            {"name": "Snap Link", "value": f"[@{snap_author}/{snap_permlink}](https://peakd.com/@{snap_author}/{snap_permlink})", "inline": False},
+                            {"name": "Issue", "value": "Beneficiaries not set correctly", "inline": False}
+                        ]
+                    )
                 else:
                     logger.info(f"Valid snap detected for user {sender}. Processing cashback.")
                     cashback = self.calculator.calculate(purchase_num, amount)
                     self.send_cashback(sender, cashback, memo)
                     self.reply_comment(sender, memo, cashback, snap_author, snap_permlink)
+                    
+                    # Send Discord notification for successful payment
+                    self.send_discord_notification(
+                        title="💰 Cashback Sent!",
+                        description=f"Successfully sent cashback to **@{sender}**",
+                        color=0x00ff00,  # Green
+                        fields=[
+                            {"name": "User", "value": f"@{sender}", "inline": True},
+                            {"name": "Amount", "value": f"{cashback:.3f} HBD", "inline": True},
+                            {"name": "Purchase #", "value": str(purchase_num), "inline": True},
+                            {"name": "Original Payment", "value": f"{amount:.3f} HBD", "inline": True},
+                            {"name": "Invoice", "value": memo, "inline": True},
+                            {"name": "Snap Link", "value": f"[@{snap_author}/{snap_permlink}](https://peakd.com/@{snap_author}/{snap_permlink})", "inline": False}
+                        ]
+                    )
+                    
                     db.conn.execute("INSERT INTO processed_ops (block_num, op_id) VALUES (?, ?)", (block_num, op_id))
                     db.conn.execute("INSERT OR REPLACE INTO users (username, purchases, last_purchase) VALUES (?, ?, datetime('now'))", (sender, purchase_num))
                     db.conn.commit()
@@ -231,6 +328,18 @@ class HiveBot:
             elif not paid and now - ts >= timeout:
                 reason = "Payment timed out waiting for snap"
                 logger.info(f"Payment from {sender} timed out waiting for snap.")
+                # Send Discord notification for timeout
+                self.send_discord_notification(
+                    title="⏰ Payment Timeout",
+                    description=f"**@{sender}** payment timed out waiting for snap",
+                    color=0x808080,  # Gray
+                    fields=[
+                        {"name": "User", "value": f"@{sender}", "inline": True},
+                        {"name": "Amount", "value": f"{amount:.3f} HBD", "inline": True},
+                        {"name": "Invoice", "value": memo, "inline": True},
+                        {"name": "Timeout", "value": f"{timeout} seconds", "inline": True}
+                    ]
+                )
             db.conn.execute(
                 "INSERT INTO payment_events (block_num, op_id, username, amount, memo, snap_permlink, paid, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (block_num, op_id, sender, amount, memo, snap_permlink, paid, reason)
