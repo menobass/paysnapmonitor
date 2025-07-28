@@ -309,8 +309,34 @@ class HiveBot:
             snap_permlink = payment.get('snap_permlink')
             logger.info(f"Checking payment: sender={sender}, to={to}, amount={amount}, memo={memo}, block={block_num}")
             logger.info(f"Snap info: snap_author={snap_author}, snap_permlink={snap_permlink}")
-            purchases = db.conn.execute("SELECT purchases FROM users WHERE username=?", (sender,)).fetchone()
-            purchase_num = purchases[0] + 1 if purchases else 1
+            
+            # Get user data and check daily reset
+            user_data = db.conn.execute("SELECT purchases, last_purchase FROM users WHERE username=?", (sender,)).fetchone()
+            
+            if user_data:
+                stored_purchases, last_purchase_str = user_data
+                # Parse last purchase date
+                if last_purchase_str:
+                    try:
+                        from datetime import datetime, date
+                        last_purchase_date = datetime.fromisoformat(last_purchase_str.replace('Z', '+00:00')).date()
+                        today = date.today()
+                        
+                        # Reset daily count if last purchase was on a different day
+                        if last_purchase_date < today:
+                            purchase_num = 1  # First purchase today
+                            logger.info(f"Daily reset for {sender}: last purchase was {last_purchase_date}, today is {today}")
+                        else:
+                            purchase_num = stored_purchases + 1  # Same day, increment
+                            logger.info(f"Same day purchase for {sender}: incrementing from {stored_purchases} to {purchase_num}")
+                    except Exception as e:
+                        logger.warning(f"Error parsing last_purchase date for {sender}: {e}. Treating as first purchase.")
+                        purchase_num = 1
+                else:
+                    purchase_num = 1  # No previous purchase date
+            else:
+                purchase_num = 1  # First time user
+            
             daily_limit = config.get('limits', {}).get('daily_cashback_limit', 3)
             reason = None
             paid = 0
