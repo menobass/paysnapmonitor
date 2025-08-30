@@ -8,9 +8,9 @@ ban_list:
 limits:
   daily_cashback_limit: 3
 rates:
-  first: 0.07
-  second: 0.10
-  third: 0.15
+  first: 0.05
+  second: 0.07
+  third: 0.10
 caps:
   invoice_max: 1.50
 nodes:

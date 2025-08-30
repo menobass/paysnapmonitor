@@ -1,5 +1,6 @@
 from app.cashback import CashbackCalculator
 
+
 def test_cashback_rates():
     calc = CashbackCalculator()
     assert calc.calculate(1, 1.00) == round(1.00 * 0.05, 3)

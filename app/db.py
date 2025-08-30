@@ -3,6 +3,7 @@ from typing import Any
 
 DB_PATH = "paynsnap.db"
 
+
 class Database:
     def __init__(self, db_path: str = DB_PATH):
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
@@ -10,31 +11,40 @@ class Database:
 
     def create_tables(self):
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
             purchases INTEGER DEFAULT 0,
             last_purchase TIMESTAMP
         )
-        """)
-        cursor.execute("""
+        """
+        )
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS bans (
             username TEXT PRIMARY KEY
         )
-        """)
-        cursor.execute("""
+        """
+        )
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS stores (
             username TEXT PRIMARY KEY
         )
-        """)
-        cursor.execute("""
+        """
+        )
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS processed_ops (
             block_num INTEGER,
             op_id TEXT,
             PRIMARY KEY (block_num, op_id)
         )
-        """)
-        cursor.execute("""
+        """
+        )
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS payment_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             block_num INTEGER,
@@ -47,13 +57,27 @@ class Database:
             reason TEXT,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        """)
+        """
+        )
         self.conn.commit()
 
     def add_user(self, username: str):
         cursor = self.conn.cursor()
         cursor.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
         self.conn.commit()
+
+    def reset_user(self, username: str) -> bool:
+        """Reset a user's daily counters: set purchases to 0 and clear last_purchase.
+        Returns True if a row was updated/created, False otherwise."""
+        cursor = self.conn.cursor()
+        # Ensure the user exists, then reset
+        cursor.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+        cursor.execute(
+            "UPDATE users SET purchases = 0, last_purchase = NULL WHERE username = ?",
+            (username,),
+        )
+        self.conn.commit()
+        return cursor.rowcount > 0
 
     def ban_user(self, username: str):
         cursor = self.conn.cursor()
@@ -66,5 +90,6 @@ class Database:
         return cursor.fetchone() is not None
 
     # ...additional methods for stores, ops, purchases...
+
 
 db = Database()
